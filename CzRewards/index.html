@@ -400,52 +400,57 @@
                 throw error;
             }
         }
-        async function updateBalances() {
-            if (!web3 || !account || !(await checkNetwork())) return;
+async function updateBalances() {
+    if (!web3 || !account || !(await checkNetwork())) return;
 
-            try {
-                const snowBal = await snowContract.methods.balanceOf(account).call();
-                snowBalance = web3.utils.fromWei(snowBal, 'ether');
-                document.getElementById('snowBalance').innerText = `SNOW Balance: ${Number(snowBalance).toLocaleString()}`;
-            } catch (error) {
-                snowBalance = '0';
-                document.getElementById('snowBalance').innerText = 'SNOW Balance: 0';
-                console.error("SNOW balance fetch error:", error);
-            }
+    try {
+        const snowBal = await snowContract.methods.balanceOf(account).call();
+        snowBalance = web3.utils.fromWei(snowBal, 'ether');
+        document.getElementById('snowBalance').innerText = `SNOW Balance: ${Number(snowBalance).toLocaleString()}`;
+    } catch (error) {
+        snowBalance = '0';
+        document.getElementById('snowBalance').innerText = 'SNOW Balance: 0';
+        console.error("SNOW balance fetch error:", error);
+    }
 
-            try {
-                const czBal = await czContract.methods.balanceOf(account).call();
-                czBalance = web3.utils.fromWei(czBal, 'ether');
-                document.getElementById('czBalance').innerText = `CZ Balance: ${Number(czBalance).toLocaleString()}`;
-            } catch (error) {
-                czBalance = '0';
-                document.getElementById('czBalance').innerText = 'CZ Balance: 0';
-                console.error("CZ balance fetch error:", error);
-            }
+    try {
+        const czBal = await czContract.methods.balanceOf(account).call();
+        czBalance = web3.utils.fromWei(czBal, 'ether');
+        document.getElementById('czBalance').innerText = `CZ Balance: ${Number(czBalance).toLocaleString()}`;
+    } catch (error) {
+        czBalance = '0';
+        document.getElementById('czBalance').innerText = 'CZ Balance: 0';
+        console.error("CZ balance fetch error:", error);
+    }
 
-            try {
-                const userStake = await czRewardsContract.methods.getUserStake(account).call();
-                snowStaked = web3.utils.fromWei(userStake.snowAmount, 'ether');
-                czStaked = web3.utils.fromWei(userStake.czAmount, 'ether');
-                document.getElementById('snowStaked').innerText = `SNOW Staked: ${Number(snowStaked).toLocaleString()}`;
-                document.getElementById('czStaked').innerText = `CZ Staked: ${Number(czStaked).toLocaleString()}`;
-            } catch (error) {
-                snowStaked = '0';
-                czStaked = '0';
-                document.getElementById('snowStaked').innerText = 'SNOW Staked: 0';
-                document.getElementById('czStaked').innerText = 'CZ Staked: 0';
-                console.error("Stake fetch error:", error);
-            }
+    try {
+        const userStake = await czRewardsContract.methods.getUserStake(account).call();
+        snowStaked = web3.utils.fromWei(userStake.snowAmount, 'ether');
+        czStaked = web3.utils.fromWei(userStake.czAmount, 'ether');
+        document.getElementById('snowStaked').innerText = `SNOW Staked: ${Number(snowStaked).toLocaleString()}`;
+        document.getElementById('czStaked').innerText = `CZ Staked: ${Number(czStaked).toLocaleString()}`;
+    } catch (error) {
+        snowStaked = '0';
+        czStaked = '0';
+        document.getElementById('snowStaked').innerText = 'SNOW Staked: 0';
+        document.getElementById('czStaked').innerText = 'CZ Staked: 0';
+        console.error("Stake fetch error:", error);
+    }
 
-            try {
-                const pending = await czRewardsContract.methods.getPendingRewards(account).call();
-                const totalRewards = web3.utils.fromWei(String(Number(pending.snowReward) + Number(pending.czReward)), 'ether');
-                document.getElementById('pendingRewards').innerText = `Pending Rewards: ${Number(totalRewards).toLocaleString()} CZ`;
-            } catch (error) {
-                document.getElementById('pendingRewards').innerText = 'Pending Rewards: 0 CZ';
-                console.error("Pending rewards fetch error:", error);
-            }
-        }
+    try {
+        const pending = await czRewardsContract.methods.getPendingRewards(account).call();
+        console.log("Pending Rewards (raw):", pending);
+        const snowRewardBN = new web3.utils.BN(pending.snowReward.toString());
+        const czRewardBN = new web3.utils.BN(pending.czReward.toString());
+        const snowReward = Number(web3.utils.fromWei(snowRewardBN, 'ether'));
+        const czReward = Number(web3.utils.fromWei(czRewardBN, 'ether'));
+        const totalRewards = snowReward + czReward;
+        document.getElementById('pendingRewards').innerText = `Pending Rewards: ${totalRewards.toFixed(6).replace(/\.?0+$/, '')} CZ`;
+    } catch (error) {
+        document.getElementById('pendingRewards').innerText = 'Pending Rewards: 0 CZ';
+        console.error("Pending rewards fetch error:", error.message);
+    }
+}
         function setSnowStakePercentage(percentage) {
             if (!snowBalance) return;
             const amount = Math.floor((parseFloat(snowBalance) * percentage) / 100 / 100000000) * 100000000;
