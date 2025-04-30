@@ -242,14 +242,17 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
     <script>
-        const zodiacAddress = '0xB2eBA5B12c58eA1CA4A269504A2145262f690510';
+        const zodiacAddressRaw = '0xB2eBA5B12c58eA1CA4A269504A2145262f690510';
+        let zodiacAddress;
         const zodiacAbi = [
             {"inputs":[],"stateMutability":"nonpayable","type":"constructor"},
             {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"owner","type":"address"},{"indexed":true,"internalType":"address","name":"spender","type":"address"},{"indexed":false,"internalType":"uint256","name":"value","type":"uint256"}],"name":"Approval","type":"event"},
             {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"sets","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"outputAmount","type":"uint256"}],"name":"Deposit","type":"event"},
             {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"from","type":"address"},{"indexed":true,"internalType":"address","name":"to","type":"address"},{"indexed":false,"internalType":"uint256","name":"value","type":"uint256"}],"name":"Transfer","type":"event"},
             {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"sets","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"outputAmount","type":"uint256"}],"name":"Withdraw","type":"event"},
-            {"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"address","name":"spender","type":"address"}],"name":"allowance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"address","name":"spender","type":"address"}],"name่า
+
+"allowance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
             {"inputs":[{"internalType":"address","name":"spender","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"approve","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"},
             {"inputs":[{"internalType":"address","name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
             {"inputs":[],"name":"decimals","outputs":[{"internalType":"uint8","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},
@@ -273,7 +276,7 @@
             {"constant":true,"inputs":[{"name":"_owner","type":"address"},{"name":"_spender","type":"address"}],"name":"allowance","outputs":[{"name":"remaining","type":"uint256"}],"type":"function"},
             {"constant":true,"inputs":[],"name":"decimals","outputs":[{"name":"","type":"uint8"}],"type":"function"}
         ];
-        const tokenAddresses = [
+        const tokenAddressesRaw = [
             '0x0e645767fd422E5D4689c4ee9BCf382C6BA71bcb',
             '0xC9139428426461AA8bcB9F1df862a5B8A2dE81d4',
             '0x33496751c15f0F00CA7488C5a8f3cb7777dD87C5',
@@ -287,6 +290,7 @@
             '0xF9BdD5996524E0F06aa4F77eBF2dDb9A69326c9b',
             '0x245400F492ADd840e83C0AB7ac0Ef0915e23B5cA'
         ];
+        let tokenAddresses = [];
         const tokenNames = ['Rat', 'Ox', 'Tiger', 'Rabbit', 'Dragon', 'Snake', 'Horse', 'Goat', 'Monkey', 'Rooster', 'Dog', 'Pig'];
         const requiredAmountsRaw = ['1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1'];
         const requiredDisplay = ['1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1'];
@@ -335,6 +339,8 @@
                 console.log("Connected account:", account);
                 document.getElementById('connectWalletButton').innerText = `Connected: ${account.slice(0, 6)}...${account.slice(-4)}`;
                 requiredAmounts = requiredAmountsRaw.map(amount => web3.utils.toWei(amount, 'ether'));
+                zodiacAddress = web3.utils.toChecksumAddress(zodiacAddressRaw);
+                tokenAddresses = tokenAddressesRaw.map(address => web3.utils.toChecksumAddress(address));
                 await switchNetwork('Shibarium');
                 await initializeContracts();
                 await updateBalances();
@@ -345,7 +351,7 @@
                     document.getElementById('networkStatus').innerText = 'User denied wallet connection';
                     document.getElementById('dragonMessage').innerText = getRandomMessage('userDenied');
                 } else {
-                    document.getElementById('networkStatus').innerText = 'Failed to connect wallet';
+                    document.getElementById('networkStatus').innerText = 'Failed to connect wallet: ' + error.message;
                     document.getElementById('dragonMessage').innerText = getRandomMessage('connectFail');
                     console.error("Wallet connection error:", error.message);
                 }
@@ -380,32 +386,60 @@
         }
         async function initializeContracts() {
             try {
+                console.log("Initializing Zodiac contract at:", zodiacAddress);
                 zodiacContract = new web3.eth.Contract(zodiacAbi, zodiacAddress);
-                tokenContracts = tokenAddresses.map(address => new web3.eth.Contract(erc20Abi, address));
-                console.log("Zodiac contract initialized at:", zodiacAddress);
-                console.log("Token contracts initialized:", tokenAddresses);
-                const totalSupply = await zodiacContract.methods.totalSupply().call();
-                document.getElementById('totalSupply').innerText = `Total Supply: ${Number(web3.utils.fromWei(totalSupply, 'ether')).toLocaleString()}`;
+                console.log("Zodiac contract initialized");
             } catch (error) {
-                document.getElementById('totalSupply').innerText = 'Total Supply: Error';
-                document.getElementById('dragonMessage').innerText = 'Roar! Contract error, check address!';
-                console.error("Initialize contracts error:", error.message);
+                console.error("Failed to initialize Zodiac contract:", error.message);
+                zodiacContract = null;
+                document.getElementById('totalSupply').innerText = 'Total Supply: Error (Invalid contract address)';
+                document.getElementById('dragonMessage').innerText = 'Roar! Zodiac contract address invalid!';
+            }
+            tokenContracts = [];
+            for (let i = 0; i < tokenAddresses.length; i++) {
+                try {
+                    console.log(`Initializing ${tokenNames[i]} contract at:`, tokenAddresses[i]);
+                    const contract = new web3.eth.Contract(erc20Abi, tokenAddresses[i]);
+                    tokenContracts.push(contract);
+                    console.log(`${tokenNames[i]} contract initialized`);
+                } catch (error) {
+                    console.error(`Failed to initialize ${tokenNames[i]} contract:`, error.message);
+                    tokenContracts.push(null);
+                }
+            }
+            if (zodiacContract) {
+                try {
+                    const totalSupply = await zodiacContract.methods.totalSupply().call();
+                    document.getElementById('totalSupply').innerText = `Total Supply: ${Number(web3.utils.fromWei(totalSupply, 'ether')).toLocaleString()}`;
+                } catch (error) {
+                    document.getElementById('totalSupply').innerText = 'Total Supply: Error';
+                    console.error("Total supply fetch error:", error.message);
+                }
             }
         }
         async function updateBalances() {
             if (!web3 || !account) return;
-            try {
-                const czBalanceRaw = await zodiacContract.methods.balanceOf(account).call();
-                czBalance = web3.utils.fromWei(czBalanceRaw, 'ether');
-                document.getElementById('myBalance').innerText = `My Balance: ${Number(czBalance).toLocaleString()}`;
-                console.log("CZ Balance:", czBalance);
-            } catch (error) {
-                document.getElementById('myBalance').innerText = 'My Balance: Error';
-                console.error("CZ balance fetch error:", error.message);
+            if (zodiacContract) {
+                try {
+                    const czBalanceRaw = await zodiacContract.methods.balanceOf(account).call();
+                    czBalance = web3.utils.fromWei(czBalanceRaw, 'ether');
+                    document.getElementById('myBalance').innerText = `My Balance: ${Number(czBalance).toLocaleString()}`;
+                    console.log("CZ Balance:", czBalance);
+                } catch (error) {
+                    document.getElementById('myBalance').innerText = 'My Balance: Error';
+                    console.error("CZ balance fetch error:", error.message);
+                }
+            } else {
+                document.getElementById('myBalance').innerText = 'My Balance: Error (Zodiac contract not initialized)';
             }
             const balanceElements = ['ratBalance', 'oxBalance', 'tigerBalance', 'rabbitBalance', 'dragonBalance', 'snakeBalance', 'horseBalance', 'goatBalance', 'monkeyBalance', 'roosterBalance', 'dogBalance', 'pigBalance'];
             const balances = [];
             for (let i = 0; i < tokenContracts.length; i++) {
+                if (!tokenContracts[i]) {
+                    balances.push('0');
+                    document.getElementById(balanceElements[i]).innerText = `Balance: Error (${tokenNames[i]} - Contract not initialized)`;
+                    continue;
+                }
                 try {
                     const decimals = await tokenContracts[i].methods.decimals().call();
                     console.log(`${tokenNames[i]} decimals:`, decimals);
@@ -427,7 +461,7 @@
             const maxSets = balances.map((balance, i) => {
                 const required = web3.utils.toBN(requiredAmounts[i]);
                 const balanceBN = web3.utils.toBN(balance);
-                if (required.isZero()) return Infinity;
+                if (required.isZero()) return 0; // Avoid Infinity
                 return Math.floor(Number(balanceBN.div(required)));
             });
             const maxPossibleSets = Math.min(...maxSets);
@@ -471,6 +505,11 @@
                 dragonMessage.innerText = getRandomMessage('approveStart');
                 const maxUint256 = '115792089237316195423570985008687907853269984665640564039457584007913129639935';
                 for (let i = 0; i < tokenContracts.length; i++) {
+                    if (!tokenContracts[i]) {
+                        status.innerText = `${tokenNames[i]} contract not initialized`;
+                        dragonMessage.innerText = `Roar! ${tokenNames[i]} contract not initialized!`;
+                        return;
+                    }
                     status.innerText = `Approving ${tokenNames[i]}...`;
                     try {
                         const allowance = await tokenContracts[i].methods.allowance(account, zodiacAddress).call();
@@ -510,6 +549,11 @@
                 dragonMessage.innerText = getRandomMessage('connectFail');
                 return;
             }
+            if (!zodiacContract) {
+                status.innerText = "Zodiac contract not initialized.";
+                dragonMessage.innerText = "Roar! Zodiac contract not initialized!";
+                return;
+            }
             const sets = parseInt(document.getElementById('depositSets').value);
             if (!sets || sets <= 0) {
                 status.innerText = "Please enter a valid number of sets.";
@@ -522,6 +566,11 @@
                 status.innerText = "Checking balances and allowances...";
                 dragonMessage.innerText = getRandomMessage('depositStart');
                 for (let i = 0; i < tokenContracts.length; i++) {
+                    if (!tokenContracts[i]) {
+                        status.innerText = `${tokenNames[i]} contract not initialized`;
+                        dragonMessage.innerText = `Roar! ${tokenNames[i]} contract not initialized!`;
+                        return;
+                    }
                     try {
                         const balance = await tokenContracts[i].methods.balanceOf(account).call();
                         const required = web3.utils.toBN(requiredAmounts[i]).mul(web3.utils.toBN(sets));
@@ -581,6 +630,11 @@
             if (!web3 || !account) {
                 status.innerText = "Please connect wallet first.";
                 dragonMessage.innerText = getRandomMessage('connectFail');
+                return;
+            }
+            if (!zodiacContract) {
+                status.innerText = "Zodiac contract not initialized.";
+                dragonMessage.innerText = "Roar! Zodiac contract not initialized!";
                 return;
             }
             const amount = parseFloat(document.getElementById('withdrawAmount').value);
