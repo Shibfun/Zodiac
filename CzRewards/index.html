@@ -253,7 +253,7 @@
     <script>
         const czRewardsAddress = '0x4885c0EB85F8E168d43D9a0d4D1AB8148A515101';
         const snowAddress = '0x2778f7E40D90DB18203Ec31C9c5F84fde6cf6763';
-        const czAddress = '0xB2eBA5B12c58eA1CA4A269504A2145262f690510';
+        const czAddress = '0xB2eBA5B12c58eA1CA4A269504A2145262F690510';
         const czRewardsAbi = [
             {"inputs":[{"internalType":"address","name":"_owner","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},
             {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"CzStaked","type":"event"},
@@ -307,7 +307,8 @@
             claimSuccess: ["Roar! CZ rewards claimed!", "Hiss! Your rewards are yours!", "Growl! Success! Rewards claimed!"],
             claimFail: ["Roar! Claim failed, try again!", "Hiss! Claim error, retry!", "Growl! Claim hit a snag, retry!"],
             noAmount: ["Roar! Enter a valid amount!", "Hiss! Invalid amount, pick a valid one!", "Growl! Need a valid amount to proceed!"],
-            userDenied: ["Roar! You canceled the transaction!", "Hiss! Transaction denied, try again!", "Growl! You said no, let's try again!"]
+            userDenied: ["Roar! You canceled the transaction!", "Hiss! Transaction denied, try again!", "Growl! You said no, let's try again!"],
+            networkError: ["Roar! Please switch to Shibarium network!", "Hiss! Wrong network, switch to Shibarium!", "Growl! Connect to Shibarium to proceed!"]
         };
         function getRandomMessage(type) {
             const messages = dragonMessages[type];
@@ -374,44 +375,78 @@
                 }
             }
         }
+        async function checkNetwork() {
+            const chainId = await web3.eth.getChainId();
+            if (chainId !== chains.Shibarium.chainId) {
+                document.getElementById('networkStatus').innerText = 'Please switch to Shibarium network';
+                document.getElementById('dragonMessage').innerText = getRandomMessage('networkError');
+                return false;
+            }
+            return true;
+        }
         async function initializeContracts() {
             try {
                 czRewardsContract = new web3.eth.Contract(czRewardsAbi, czRewardsAddress);
                 snowContract = new web3.eth.Contract(erc20Abi, snowAddress);
                 czContract = new web3.eth.Contract(erc20Abi, czAddress);
+                // 测试代币合约是否可用
+                await snowContract.methods.balanceOf(account).call();
+                await czContract.methods.balanceOf(account).call();
             } catch (error) {
                 document.getElementById('networkStatus').innerText = 'Failed to initialize contracts';
-                document.getElementById('dragonMessage').innerText = 'Roar! Contract error, check address!';
+                document.getElementById('dragonMessage').innerText = 'Roar! Contract or token address error!';
                 console.error("Initialize contracts error:", error);
+                throw error;
             }
         }
         async function updateBalances() {
-            if (!web3 || !account) return;
+            if (!web3 || !account || !(await checkNetwork())) return;
+
+            // SNOW Balance
             try {
                 const snowBal = await snowContract.methods.balanceOf(account).call();
                 snowBalance = web3.utils.fromWei(snowBal, 'ether');
                 document.getElementById('snowBalance').innerText = `SNOW Balance: ${Number(snowBalance).toLocaleString()}`;
-                
+            } catch (error) {
+                snowBalance = '0';
+                document.getElementById('snowBalance').innerText = 'SNOW Balance: 0';
+                console.error("SNOW balance fetch error:", error);
+            }
+
+            // CZ Balance
+            try {
                 const czBal = await czContract.methods.balanceOf(account).call();
                 czBalance = web3.utils.fromWei(czBal, 'ether');
                 document.getElementById('czBalance').innerText = `CZ Balance: ${Number(czBalance).toLocaleString()}`;
-                
+            } catch (error) {
+                czBalance = '0';
+                document.getElementById('czBalance').innerText = 'CZ Balance: 0';
+                console.error("CZ balance fetch error:", error);
+            }
+
+            // Staked Amounts
+            try {
                 const userStake = await czRewardsContract.methods.getUserStake(account).call();
                 snowStaked = web3.utils.fromWei(userStake.snowAmount, 'ether');
                 czStaked = web3.utils.fromWei(userStake.czAmount, 'ether');
                 document.getElementById('snowStaked').innerText = `SNOW Staked: ${Number(snowStaked).toLocaleString()}`;
                 document.getElementById('czStaked').innerText = `CZ Staked: ${Number(czStaked).toLocaleString()}`;
-                
+            } catch (error) {
+                snowStaked = '0';
+                czStaked = '0';
+                document.getElementById('snowStaked').innerText = 'SNOW Staked: 0';
+                document.getElementById('czStaked').innerText = 'CZ Staked: 0';
+                console.error("Stake fetch error:", error);
+            }
+
+            // Pending Rewards
+            try {
                 const pending = await czRewardsContract.methods.getPendingRewards(account).call();
                 const totalRewards = web3.utils.fromWei(String(Number(pending.snowReward) + Number(pending.czReward)), 'ether');
                 document.getElementById('pendingRewards').innerText = `Pending Rewards: ${Number(totalRewards).toLocaleString()} CZ`;
             } catch (error) {
-                document.getElementById('snowBalance').innerText = 'SNOW Balance: Error';
-                document.getElementById('czBalance').innerText = 'CZ Balance: Error';
-                document.getElementById('snowStaked').innerText = 'SNOW Staked: Error';
-                document.getElementById('czStaked').innerText = 'CZ Staked: Error';
-                document.getElementById('pendingRewards').innerText = 'Pending Rewards: Error';
-                console.error("Update balances error:", error);
+                document.getElementById('pendingRewards').innerText = 'Pending Rewards: 0 CZ';
+                console.error("Pending rewards fetch error:", error);
             }
         }
         function setSnowStakePercentage(percentage) {
@@ -452,8 +487,8 @@
         async function handleTransaction(button, statusText, action, successMessage, failMessage, fn) {
             const status = document.getElementById('networkStatus');
             const dragonMessage = document.getElementById('dragonMessage');
-            if (!web3 || !account) {
-                status.innerText = "Please connect wallet first.";
+            if (!web3 || !account || !(await checkNetwork())) {
+                status.innerText = "Please connect wallet and switch to Shibarium.";
                 dragonMessage.innerText = getRandomMessage('connectFail');
                 return;
             }
