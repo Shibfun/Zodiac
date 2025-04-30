@@ -205,7 +205,6 @@
                 <button onclick="setSnowStakePercentage(75)">75%</button>
                 <button onclick="setSnowStakePercentage(100)">MAX</button>
             </div>
-            <button class="action-button" id="approveSnowButton">Approve SNOW</button>
             <button class="action-button" id="stakeSnowButton">Stake SNOW</button>
         </div>
         <div class="input-box">
@@ -217,7 +216,6 @@
                 <button onclick="setCzStakePercentage(75)">75%</button>
                 <button onclick="setCzStakePercentage(100)">MAX</button>
             </div>
-            <button class="action-button" id="approveCzButton">Approve CZ</button>
             <button class="action-button" id="stakeCzButton">Stake CZ</button>
         </div>
         <div class="input-box">
@@ -297,18 +295,18 @@
             connectSuccess: ["Roar! Wallet connected, ready to stake!", "Hiss! You're in, let's earn CZ!", "Growl! Wallet's ready, time to stake!"],
             connectFail: ["Roar! Couldn't connect wallet, try again!", "Hiss! Wallet connection failed, retry!", "Growl! Something went wrong, check wallet!"],
             approveStart: ["Roar! Approving tokens, hold tight!", "Hiss! Setting up token approvals now!", "Growl! Approval in progress!"],
-            approveSuccess: ["Roar! Tokens approved, ready to stake!", "Hiss! Token approved, let's stake!", "Growl! Success! Tokens ready!"],
-            approveFail: ["Roar! Approval failed, check details!", "Hiss! Something went wrong, try again!", "Growl! Approval hit a snag, retry!"],
+            approveSuccess: ["Roar! Tokens approved, proceeding to stake!", "Hiss! Token approved, staking now!", "Growl! Approval done, staking!"],
+            approveFail: ["Roar! Approval failed, check details!", "Hiss! Approval error, try again!", "Growl! Approval hit a snag, retry!"],
             stakeStart: ["Roar! Staking your tokens, hold tight!", "Hiss! Locking your tokens now!", "Growl! Stake in progress!"],
             stakeSuccess: ["Roar! Tokens staked, earning CZ!", "Hiss! Your stake is active!", "Growl! Success! Stake complete!"],
-            stakeFail: ["Roar! Stake failed, check balance!", "Hiss! Something went wrong, try again!", "Growl! Stake hit a snag, retry!"],
+            stakeFail: ["Roar! Stake failed, check balance!", "Hiss! Stake error, try again!", "Growl! Stake hit a snag, retry!"],
             unstakeStart: ["Roar! Unstaking your tokens, hold tight!", "Hiss! Releasing your tokens now!", "Growl! Unstake in progress!"],
             unstakeSuccess: ["Roar! Tokens unstaked!", "Hiss! Your tokens are back!", "Growl! Success! Unstake complete!"],
-            unstakeFail: ["Roar! Unstake failed, check stake!", "Hiss! Something went wrong, try again!", "Growl! Unstake hit a snag, retry!"],
+            unstakeFail: ["Roar! Unstake failed, check stake!", "Hiss! Unstake error, try again!", "Growl! Unstake hit a snag, retry!"],
             claimStart: ["Roar! Claiming your CZ rewards!", "Hiss! Collecting your earnings now!", "Growl! Claim in progress!"],
             claimSuccess: ["Roar! CZ rewards claimed!", "Hiss! Your rewards are yours!", "Growl! Success! Rewards claimed!"],
-            claimFail: ["Roar! Claim failed, try again!", "Hiss! Something went wrong, retry!", "Growl! Claim hit a snag, retry!"],
-            noAmount: ["Roar! Enter a valid amount!", "Hiss! Can't process that, pick a valid amount!", "Growl! Need a valid amount to proceed!"],
+            claimFail: ["Roar! Claim failed, try again!", "Hiss! Claim error, retry!", "Growl! Claim hit a snag, retry!"],
+            noAmount: ["Roar! Enter a valid amount!", "Hiss! Invalid amount, pick a valid one!", "Growl! Need a valid amount to proceed!"],
             userDenied: ["Roar! You canceled the transaction!", "Hiss! Transaction denied, try again!", "Growl! You said no, let's try again!"]
         };
         function getRandomMessage(type) {
@@ -480,25 +478,8 @@
                 }
             } finally {
                 button.disabled = false;
-                button.innerHTML = `${action}`;
+                button.innerHTML = action;
             }
-        }
-        async function approveSnow() {
-            const amount = document.getElementById('snowStakeAmount').value;
-            if (!amount || amount < 100000000 || amount % 100000000 !== 0) {
-                document.getElementById('networkStatus').innerText = "Please enter a valid amount (multiple of 100M).";
-                document.getElementById('dragonMessage').innerText = getRandomMessage('noAmount');
-                return;
-            }
-            const amountWei = web3.utils.toWei(amount.toString(), 'ether');
-            await handleTransaction(
-                document.getElementById('approveSnowButton'),
-                "Approving SNOW...",
-                "Approve",
-                "SNOW approved successfully!",
-                "Approval failed.",
-                () => snowContract.methods.approve(czRewardsAddress, amountWei).send({ from: account, gas: web3.utils.toHex(100000) })
-            );
         }
         async function stakeSnow() {
             const amount = document.getElementById('snowStakeAmount').value;
@@ -516,34 +497,22 @@
             }
             const allowance = await snowContract.methods.allowance(account, czRewardsAddress).call();
             if (web3.utils.toBN(allowance).lt(web3.utils.toBN(amountWei))) {
-                document.getElementById('networkStatus').innerText = "Insufficient SNOW allowance. Please approve first.";
-                document.getElementById('dragonMessage').innerText = "Roar! Approve SNOW first!";
-                return;
+                await handleTransaction(
+                    document.getElementById('stakeSnowButton'),
+                    "Approving SNOW...",
+                    "Approve",
+                    "SNOW approved, staking...",
+                    "Approval failed.",
+                    () => snowContract.methods.approve(czRewardsAddress, '115792089237316195423570985008687907853269984665640564039457584007913129639935').send({ from: account, gas: web3.utils.toHex(100000) })
+                );
             }
             await handleTransaction(
                 document.getElementById('stakeSnowButton'),
                 `Staking ${amount} SNOW...`,
-                "Stake",
+                "Stake SNOW",
                 "SNOW staked successfully!",
                 "Stake failed.",
                 () => czRewardsContract.methods.stakeSnow(amountWei).send({ from: account, gas: web3.utils.toHex(300000) })
-            );
-        }
-        async function approveCz() {
-            const amount = document.getElementById('czStakeAmount').value;
-            if (!amount || amount < 10000 || amount % 10000 !== 0) {
-                document.getElementById('networkStatus').innerText = "Please enter a valid amount (multiple of 10K).";
-                document.getElementById('dragonMessage').innerText = getRandomMessage('noAmount');
-                return;
-            }
-            const amountWei = web3.utils.toWei(amount.toString(), 'ether');
-            await handleTransaction(
-                document.getElementById('approveCzButton'),
-                "Approving CZ...",
-                "Approve",
-                "CZ approved successfully!",
-                "Approval failed.",
-                () => czContract.methods.approve(czRewardsAddress, amountWei).send({ from: account, gas: web3.utils.toHex(100000) })
             );
         }
         async function stakeCz() {
@@ -562,14 +531,19 @@
             }
             const allowance = await czContract.methods.allowance(account, czRewardsAddress).call();
             if (web3.utils.toBN(allowance).lt(web3.utils.toBN(amountWei))) {
-                document.getElementById('networkStatus').innerText = "Insufficient CZ allowance. Please approve first.";
-                document.getElementById('dragonMessage').innerText = "Roar! Approve CZ first!";
-                return;
+                await handleTransaction(
+                    document.getElementById('stakeCzButton'),
+                    "Approving CZ...",
+                    "Approve",
+                    "CZ approved, staking...",
+                    "Approval failed.",
+                    () => czContract.methods.approve(czRewardsAddress, '115792089237316195423570985008687907853269984665640564039457584007913129639935').send({ from: account, gas: web3.utils.toHex(100000) })
+                );
             }
             await handleTransaction(
                 document.getElementById('stakeCzButton'),
                 `Staking ${amount} CZ...`,
-                "Stake",
+                "Stake CZ",
                 "CZ staked successfully!",
                 "Stake failed.",
                 () => czRewardsContract.methods.stakeCz(amountWei).send({ from: account, gas: web3.utils.toHex(300000) })
@@ -592,7 +566,7 @@
             await handleTransaction(
                 document.getElementById('unstakeSnowButton'),
                 `Unstaking ${amount} SNOW...`,
-                "Unstake",
+                "Unstake SNOW",
                 "SNOW unstaked successfully!",
                 "Unstake failed.",
                 () => czRewardsContract.methods.unstakeSnow().send({ from: account, gas: web3.utils.toHex(300000) })
@@ -615,7 +589,7 @@
             await handleTransaction(
                 document.getElementById('unstakeCzButton'),
                 `Unstaking ${amount} CZ...`,
-                "Unstake",
+                "Unstake CZ",
                 "CZ unstaked successfully!",
                 "Unstake failed.",
                 () => czRewardsContract.methods.unstakeCz().send({ from: account, gas: web3.utils.toHex(300000) })
@@ -631,16 +605,14 @@
             await handleTransaction(
                 document.getElementById('claimRewardsButton'),
                 "Claiming CZ rewards...",
-                "Claim",
+                "Claim Rewards",
                 "Rewards claimed successfully!",
                 "Claim failed.",
                 () => czRewardsContract.methods.claimRewards().send({ from: account, gas: web3.utils.toHex(200000) })
             );
         }
         document.getElementById('connectWalletButton').addEventListener('click', initializeWeb3);
-        document.getElementById('approveSnowButton').addEventListener('click', approveSnow);
         document.getElementById('stakeSnowButton').addEventListener('click', stakeSnow);
-        document.getElementById('approveCzButton').addEventListener('click', approveCz);
         document.getElementById('stakeCzButton').addEventListener('click', stakeCz);
         document.getElementById('unstakeSnowButton').addEventListener('click', unstakeSnow);
         document.getElementById('unstakeCzButton').addEventListener('click', unstakeCz);
