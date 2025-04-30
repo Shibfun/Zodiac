@@ -308,10 +308,12 @@
             claimFail: ["Roar! Claim failed, try again!", "Hiss! Claim error, retry!", "Growl! Claim hit a snag, retry!"],
             noAmount: ["Roar! Enter a valid amount!", "Hiss! Invalid amount, pick a valid one!", "Growl! Need a valid amount to proceed!"],
             userDenied: ["Roar! You canceled the transaction!", "Hiss! Transaction denied, try again!", "Growl! You said no, let's try again!"],
-            networkError: ["Roar! Please switch to Shibarium network!", "Hiss! Wrong network, switch to Shibarium!", "Growl! Connect to Shibarium to proceed!"]
+            networkError: ["Roar! Please switch to Shibarium network!", "Hiss! Wrong network, switch to Shibarium!", "Growl! Connect to Shibarium to proceed!"],
+            insufficientBalance: ["Roar! Insufficient balance for staking!", "Hiss! Not enough tokens to stake!", "Growl! Check your balance and try again!"],
+            transactionFailed: ["Roar! Transaction failed, try again!", "Hiss! Something went wrong with the transaction!", "Growl! Transaction error, retry!"]
         };
         function getRandomMessage(type) {
-            const messages = dragonMessages[type];
+            const messages = dragonMessages[type] || ["Error: Unknown message type"];
             return messages[Math.floor(Math.random() * messages.length)];
         }
         async function initializeWeb3() {
@@ -389,7 +391,6 @@
                 czRewardsContract = new web3.eth.Contract(czRewardsAbi, czRewardsAddress);
                 snowContract = new web3.eth.Contract(erc20Abi, snowAddress);
                 czContract = new web3.eth.Contract(erc20Abi, czAddress);
-                // 测试代币合约是否可用
                 await snowContract.methods.balanceOf(account).call();
                 await czContract.methods.balanceOf(account).call();
             } catch (error) {
@@ -402,7 +403,6 @@
         async function updateBalances() {
             if (!web3 || !account || !(await checkNetwork())) return;
 
-            // SNOW Balance
             try {
                 const snowBal = await snowContract.methods.balanceOf(account).call();
                 snowBalance = web3.utils.fromWei(snowBal, 'ether');
@@ -413,7 +413,6 @@
                 console.error("SNOW balance fetch error:", error);
             }
 
-            // CZ Balance
             try {
                 const czBal = await czContract.methods.balanceOf(account).call();
                 czBalance = web3.utils.fromWei(czBal, 'ether');
@@ -424,7 +423,6 @@
                 console.error("CZ balance fetch error:", error);
             }
 
-            // Staked Amounts
             try {
                 const userStake = await czRewardsContract.methods.getUserStake(account).call();
                 snowStaked = web3.utils.fromWei(userStake.snowAmount, 'ether');
@@ -439,7 +437,6 @@
                 console.error("Stake fetch error:", error);
             }
 
-            // Pending Rewards
             try {
                 const pending = await czRewardsContract.methods.getPendingRewards(account).call();
                 const totalRewards = web3.utils.fromWei(String(Number(pending.snowReward) + Number(pending.czReward)), 'ether');
@@ -496,19 +493,23 @@
                 button.disabled = true;
                 button.innerHTML = `${action}... <span class="spinner"></span>`;
                 status.innerText = statusText;
-                dragonMessage.innerText = getRandomMessage(`${action.toLowerCase()}Start`);
+                dragonMessage.innerText = getRandomMessage(`${action.toLowerCase().includes('stake') ? 'stake' : action.toLowerCase()}Start`);
                 const tx = await fn();
                 await waitForTransaction(tx.transactionHash);
                 status.innerText = successMessage;
-                dragonMessage.innerText = getRandomMessage(`${action.toLowerCase()}Success`);
+                dragonMessage.innerText = getRandomMessage(`${action.toLowerCase().includes('stake') ? 'stake' : action.toLowerCase()}Success`);
                 await updateBalances();
             } catch (error) {
-                if (error.code === 4001) {
+                let failType = action.toLowerCase().includes('stake') ? 'stakeFail' : action.toLowerCase() + 'Fail';
+                if (error.message.includes("insufficient funds")) {
+                    status.innerText = "Insufficient balance for transaction.";
+                    dragonMessage.innerText = getRandomMessage('insufficientBalance');
+                } else if (error.code === 4001) {
                     status.innerText = "Transaction canceled by user.";
                     dragonMessage.innerText = getRandomMessage('userDenied');
                 } else {
-                    status.innerText = failMessage;
-                    dragonMessage.innerText = getRandomMessage(`${action.toLowerCase()}Fail`);
+                    status.innerText = failMessage + " Check console for details.";
+                    dragonMessage.innerText = getRandomMessage(failType);
                     console.error(`${action} error:`, error);
                 }
             } finally {
@@ -524,31 +525,37 @@
                 return;
             }
             const amountWei = web3.utils.toWei(amount.toString(), 'ether');
-            const balance = await snowContract.methods.balanceOf(account).call();
-            if (web3.utils.toBN(balance).lt(web3.utils.toBN(amountWei))) {
-                document.getElementById('networkStatus').innerText = "Insufficient SNOW balance.";
-                document.getElementById('dragonMessage').innerText = "Roar! Not enough SNOW!";
-                return;
-            }
-            const allowance = await snowContract.methods.allowance(account, czRewardsAddress).call();
-            if (web3.utils.toBN(allowance).lt(web3.utils.toBN(amountWei))) {
+            try {
+                const balance = await snowContract.methods.balanceOf(account).call();
+                if (web3.utils.toBN(balance).lt(web3.utils.toBN(amountWei))) {
+                    document.getElementById('networkStatus').innerText = "Insufficient SNOW balance.";
+                    document.getElementById('dragonMessage').innerText = getRandomMessage('insufficientBalance');
+                    return;
+                }
+                const allowance = await snowContract.methods.allowance(account, czRewardsAddress).call();
+                if (web3.utils.toBN(allowance).lt(web3.utils.toBN(amountWei))) {
+                    await handleTransaction(
+                        document.getElementById('stakeSnowButton'),
+                        "Approving SNOW...",
+                        "Approve",
+                        "SNOW approved, staking...",
+                        "Approval failed.",
+                        () => snowContract.methods.approve(czRewardsAddress, '115792089237316195423570985008687907853269984665640564039457584007913129639935').send({ from: account, gas: web3.utils.toHex(100000) })
+                    );
+                }
                 await handleTransaction(
                     document.getElementById('stakeSnowButton'),
-                    "Approving SNOW...",
-                    "Approve",
-                    "SNOW approved, staking...",
-                    "Approval failed.",
-                    () => snowContract.methods.approve(czRewardsAddress, '115792089237316195423570985008687907853269984665640564039457584007913129639935').send({ from: account, gas: web3.utils.toHex(100000) })
+                    `Staking ${amount} SNOW...`,
+                    "Stake SNOW",
+                    "SNOW staked successfully!",
+                    "Stake failed.",
+                    () => czRewardsContract.methods.stakeSnow(amountWei).send({ from: account, gas: web3.utils.toHex(300000) })
                 );
+            } catch (error) {
+                document.getElementById('networkStatus').innerText = "Stake failed. Check console for details.";
+                document.getElementById('dragonMessage').innerText = getRandomMessage('stakeFail');
+                console.error("Stake SNOW error:", error);
             }
-            await handleTransaction(
-                document.getElementById('stakeSnowButton'),
-                `Staking ${amount} SNOW...`,
-                "Stake SNOW",
-                "SNOW staked successfully!",
-                "Stake failed.",
-                () => czRewardsContract.methods.stakeSnow(amountWei).send({ from: account, gas: web3.utils.toHex(300000) })
-            );
         }
         async function stakeCz() {
             const amount = document.getElementById('czStakeAmount').value;
@@ -558,31 +565,37 @@
                 return;
             }
             const amountWei = web3.utils.toWei(amount.toString(), 'ether');
-            const balance = await czContract.methods.balanceOf(account).call();
-            if (web3.utils.toBN(balance).lt(web3.utils.toBN(amountWei))) {
-                document.getElementById('networkStatus').innerText = "Insufficient CZ balance.";
-                document.getElementById('dragonMessage').innerText = "Roar! Not enough CZ!";
-                return;
-            }
-            const allowance = await czContract.methods.allowance(account, czRewardsAddress).call();
-            if (web3.utils.toBN(allowance).lt(web3.utils.toBN(amountWei))) {
+            try {
+                const balance = await czContract.methods.balanceOf(account).call();
+                if (web3.utils.toBN(balance).lt(web3.utils.toBN(amountWei))) {
+                    document.getElementById('networkStatus').innerText = "Insufficient CZ balance.";
+                    document.getElementById('dragonMessage').innerText = getRandomMessage('insufficientBalance');
+                    return;
+                }
+                const allowance = await czContract.methods.allowance(account, czRewardsAddress).call();
+                if (web3.utils.toBN(allowance).lt(web3.utils.toBN(amountWei))) {
+                    await handleTransaction(
+                        document.getElementById('stakeCzButton'),
+                        "Approving CZ...",
+                        "Approve",
+                        "CZ approved, staking...",
+                        "Approval failed.",
+                        () => czContract.methods.approve(czRewardsAddress, '115792089237316195423570985008687907853269984665640564039457584007913129639935').send({ from: account, gas: web3.utils.toHex(100000) })
+                    );
+                }
                 await handleTransaction(
                     document.getElementById('stakeCzButton'),
-                    "Approving CZ...",
-                    "Approve",
-                    "CZ approved, staking...",
-                    "Approval failed.",
-                    () => czContract.methods.approve(czRewardsAddress, '115792089237316195423570985008687907853269984665640564039457584007913129639935').send({ from: account, gas: web3.utils.toHex(100000) })
+                    `Staking ${amount} CZ...`,
+                    "Stake CZ",
+                    "CZ staked successfully!",
+                    "Stake failed.",
+                    () => czRewardsContract.methods.stakeCz(amountWei).send({ from: account, gas: web3.utils.toHex(300000) })
                 );
+            } catch (error) {
+                document.getElementById('networkStatus').innerText = "Stake failed. Check console for details.";
+                document.getElementById('dragonMessage').innerText = getRandomMessage('stakeFail');
+                console.error("Stake CZ error:", error);
             }
-            await handleTransaction(
-                document.getElementById('stakeCzButton'),
-                `Staking ${amount} CZ...`,
-                "Stake CZ",
-                "CZ staked successfully!",
-                "Stake failed.",
-                () => czRewardsContract.methods.stakeCz(amountWei).send({ from: account, gas: web3.utils.toHex(300000) })
-            );
         }
         async function unstakeSnow() {
             const amount = document.getElementById('snowUnstakeAmount').value;
