@@ -250,9 +250,7 @@
             {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"sets","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"outputAmount","type":"uint256"}],"name":"Deposit","type":"event"},
             {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"from","type":"address"},{"indexed":true,"internalType":"address","name":"to","type":"address"},{"indexed":false,"internalType":"uint256","name":"value","type":"uint256"}],"name":"Transfer","type":"event"},
             {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"sets","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"outputAmount","type":"uint256"}],"name":"Withdraw","type":"event"},
-            {"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"address","name":"spender","type":"address"}],"name่า
-
-"allowance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"address","name":"spender","type":"address"}],"name":"allowance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
             {"inputs":[{"internalType":"address","name":"spender","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"approve","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"},
             {"inputs":[{"internalType":"address","name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
             {"inputs":[],"name":"decimals","outputs":[{"internalType":"uint8","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},
@@ -333,15 +331,13 @@
             }
             try {
                 web3 = new Web3(window.ethereum);
-                await window.ethereum.request({ method: 'eth_requestAccounts' });
-                const accounts = await web3.eth.getAccounts();
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
                 account = accounts[0];
-                console.log("Connected account:", account);
                 document.getElementById('connectWalletButton').innerText = `Connected: ${account.slice(0, 6)}...${account.slice(-4)}`;
                 requiredAmounts = requiredAmountsRaw.map(amount => web3.utils.toWei(amount, 'ether'));
                 zodiacAddress = web3.utils.toChecksumAddress(zodiacAddressRaw);
                 tokenAddresses = tokenAddressesRaw.map(address => web3.utils.toChecksumAddress(address));
-                await switchNetwork('Shibarium');
+                await switchNetwork();
                 await initializeContracts();
                 await updateBalances();
                 document.getElementById('networkStatus').innerText = `Connected to Shibarium`;
@@ -351,14 +347,14 @@
                     document.getElementById('networkStatus').innerText = 'User denied wallet connection';
                     document.getElementById('dragonMessage').innerText = getRandomMessage('userDenied');
                 } else {
-                    document.getElementById('networkStatus').innerText = 'Failed to connect wallet: ' + error.message;
+                    document.getElementById('networkStatus').innerText = 'Failed to connect wallet';
                     document.getElementById('dragonMessage').innerText = getRandomMessage('connectFail');
-                    console.error("Wallet connection error:", error.message);
+                    console.error("Initialize Web3 error:", error);
                 }
             }
         }
-        async function switchNetwork(chain) {
-            const chainConfig = chains[chain];
+        async function switchNetwork() {
+            const chainConfig = chains.Shibarium;
             try {
                 await window.ethereum.request({
                     method: 'wallet_switchEthereumChain',
@@ -366,107 +362,75 @@
                 });
             } catch (switchError) {
                 if (switchError.code === 4902) {
-                    await window.ethereum.request({
-                        method: 'wallet_addEthereumChain',
-                        params: [{
-                            chainId: `0x${chainConfig.chainId.toString(16)}`,
-                            chainName: chainConfig.chainName,
-                            rpcUrls: [chainConfig.rpcUrl],
-                            nativeCurrency: { name: 'BONE', symbol: 'BONE', decimals: 18 },
-                            blockExplorerUrls: [chainConfig.blockExplorer]
-                        }]
-                    });
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_addEthereumChain',
+                            params: [{
+                                chainId: `0x${chainConfig.chainId.toString(16)}`,
+                                chainName: chainConfig.chainName,
+                                rpcUrls: [chainConfig.rpcUrl],
+                                nativeCurrency: { name: 'BONE', symbol: 'BONE', decimals: 18 },
+                                blockExplorerUrls: [chainConfig.blockExplorer]
+                            }]
+                        });
+                    } catch (addError) {
+                        document.getElementById('networkStatus').innerText = 'Failed to add Shibarium network';
+                        document.getElementById('dragonMessage').innerText = 'Roar! Failed to add Shibarium network!';
+                        console.error("Add network error:", addError);
+                        throw addError;
+                    }
                 } else {
                     document.getElementById('networkStatus').innerText = 'Failed to switch to Shibarium';
                     document.getElementById('dragonMessage').innerText = 'Roar! Network switch failed, try again!';
-                    console.error("Network switch error:", switchError.message);
+                    console.error("Switch network error:", switchError);
                     throw switchError;
                 }
             }
         }
         async function initializeContracts() {
             try {
-                console.log("Initializing Zodiac contract at:", zodiacAddress);
                 zodiacContract = new web3.eth.Contract(zodiacAbi, zodiacAddress);
-                console.log("Zodiac contract initialized");
+                tokenContracts = tokenAddresses.map(address => new web3.eth.Contract(erc20Abi, address));
+                const totalSupply = await zodiacContract.methods.totalSupply().call();
+                document.getElementById('totalSupply').innerText = `Total Supply: ${Number(web3.utils.fromWei(totalSupply, 'ether')).toLocaleString()}`;
             } catch (error) {
-                console.error("Failed to initialize Zodiac contract:", error.message);
-                zodiacContract = null;
-                document.getElementById('totalSupply').innerText = 'Total Supply: Error (Invalid contract address)';
-                document.getElementById('dragonMessage').innerText = 'Roar! Zodiac contract address invalid!';
-            }
-            tokenContracts = [];
-            for (let i = 0; i < tokenAddresses.length; i++) {
-                try {
-                    console.log(`Initializing ${tokenNames[i]} contract at:`, tokenAddresses[i]);
-                    const contract = new web3.eth.Contract(erc20Abi, tokenAddresses[i]);
-                    tokenContracts.push(contract);
-                    console.log(`${tokenNames[i]} contract initialized`);
-                } catch (error) {
-                    console.error(`Failed to initialize ${tokenNames[i]} contract:`, error.message);
-                    tokenContracts.push(null);
-                }
-            }
-            if (zodiacContract) {
-                try {
-                    const totalSupply = await zodiacContract.methods.totalSupply().call();
-                    document.getElementById('totalSupply').innerText = `Total Supply: ${Number(web3.utils.fromWei(totalSupply, 'ether')).toLocaleString()}`;
-                } catch (error) {
-                    document.getElementById('totalSupply').innerText = 'Total Supply: Error';
-                    console.error("Total supply fetch error:", error.message);
-                }
+                document.getElementById('totalSupply').innerText = 'Total Supply: Error';
+                document.getElementById('dragonMessage').innerText = 'Roar! Contract error, check address!';
+                console.error("Initialize contracts error:", error);
             }
         }
         async function updateBalances() {
             if (!web3 || !account) return;
-            if (zodiacContract) {
-                try {
-                    const czBalanceRaw = await zodiacContract.methods.balanceOf(account).call();
-                    czBalance = web3.utils.fromWei(czBalanceRaw, 'ether');
-                    document.getElementById('myBalance').innerText = `My Balance: ${Number(czBalance).toLocaleString()}`;
-                    console.log("CZ Balance:", czBalance);
-                } catch (error) {
-                    document.getElementById('myBalance').innerText = 'My Balance: Error';
-                    console.error("CZ balance fetch error:", error.message);
-                }
-            } else {
-                document.getElementById('myBalance').innerText = 'My Balance: Error (Zodiac contract not initialized)';
+            try {
+                const czBalanceRaw = await zodiacContract.methods.balanceOf(account).call();
+                czBalance = web3.utils.fromWei(czBalanceRaw, 'ether');
+                document.getElementById('myBalance').innerText = `My Balance: ${Number(czBalance).toLocaleString()}`;
+            } catch (error) {
+                document.getElementById('myBalance').innerText = 'My Balance: Error';
+                console.error("CZ balance fetch error:", error);
             }
             const balanceElements = ['ratBalance', 'oxBalance', 'tigerBalance', 'rabbitBalance', 'dragonBalance', 'snakeBalance', 'horseBalance', 'goatBalance', 'monkeyBalance', 'roosterBalance', 'dogBalance', 'pigBalance'];
             const balances = [];
             for (let i = 0; i < tokenContracts.length; i++) {
-                if (!tokenContracts[i]) {
-                    balances.push('0');
-                    document.getElementById(balanceElements[i]).innerText = `Balance: Error (${tokenNames[i]} - Contract not initialized)`;
-                    continue;
-                }
                 try {
-                    const decimals = await tokenContracts[i].methods.decimals().call();
-                    console.log(`${tokenNames[i]} decimals:`, decimals);
                     const balance = await tokenContracts[i].methods.balanceOf(account).call();
                     const balanceDisplay = Number(web3.utils.fromWei(balance, 'ether')).toLocaleString();
                     balances.push(balance);
                     document.getElementById(balanceElements[i]).innerText = `Balance: ${balanceDisplay}`;
-                    console.log(`${tokenNames[i]} balance:`, balanceDisplay);
                 } catch (error) {
                     balances.push('0');
-                    let errorMsg = 'Unknown error';
-                    if (error.message.includes('revert')) errorMsg = 'Contract call reverted';
-                    else if (error.message.includes('execution reverted')) errorMsg = 'Contract not deployed or incompatible';
-                    else if (error.message.includes('timeout')) errorMsg = 'RPC timeout';
-                    document.getElementById(balanceElements[i]).innerText = `Balance: Error (${tokenNames[i]} - ${errorMsg})`;
-                    console.error(`Balance fetch error for ${tokenNames[i]} (${tokenAddresses[i]}):`, error.message);
+                    document.getElementById(balanceElements[i]).innerText = `Balance: Error (${tokenNames[i]})`;
+                    console.error(`Balance fetch error for ${tokenNames[i]} (${tokenAddresses[i]}):`, error);
                 }
             }
             const maxSets = balances.map((balance, i) => {
                 const required = web3.utils.toBN(requiredAmounts[i]);
                 const balanceBN = web3.utils.toBN(balance);
-                if (required.isZero()) return 0; // Avoid Infinity
+                if (required.isZero()) return 0;
                 return Math.floor(Number(balanceBN.div(required)));
             });
             const maxPossibleSets = Math.min(...maxSets);
             document.getElementById('maxSets').innerText = `Max Sets: ${maxPossibleSets >= 0 ? maxPossibleSets : 0}`;
-            console.log("Max sets:", maxPossibleSets);
         }
         async function setPercentage(percentage) {
             if (!czBalance) return;
@@ -505,24 +469,11 @@
                 dragonMessage.innerText = getRandomMessage('approveStart');
                 const maxUint256 = '115792089237316195423570985008687907853269984665640564039457584007913129639935';
                 for (let i = 0; i < tokenContracts.length; i++) {
-                    if (!tokenContracts[i]) {
-                        status.innerText = `${tokenNames[i]} contract not initialized`;
-                        dragonMessage.innerText = `Roar! ${tokenNames[i]} contract not initialized!`;
-                        return;
-                    }
                     status.innerText = `Approving ${tokenNames[i]}...`;
-                    try {
-                        const allowance = await tokenContracts[i].methods.allowance(account, zodiacAddress).call();
-                        if (web3.utils.toBN(allowance).lt(web3.utils.toBN(maxUint256))) {
-                            const tx = await tokenContracts[i].methods.approve(zodiacAddress, maxUint256).send({ from: account, gas: web3.utils.toHex(100000) });
-                            await waitForTransaction(tx.transactionHash);
-                            console.log(`${tokenNames[i]} approved`);
-                        } else {
-                            console.log(`${tokenNames[i]} already approved`);
-                        }
-                    } catch (error) {
-                        console.error(`Approval failed for ${tokenNames[i]} (${tokenAddresses[i]}):`, error.message);
-                        throw new Error(`Failed to approve ${tokenNames[i]}: ${error.message}`);
+                    const allowance = await tokenContracts[i].methods.allowance(account, zodiacAddress).call();
+                    if (web3.utils.toBN(allowance).lt(web3.utils.toBN(maxUint256))) {
+                        const tx = await tokenContracts[i].methods.approve(zodiacAddress, maxUint256).send({ from: account, gas: web3.utils.toHex(100000) });
+                        await waitForTransaction(tx.transactionHash);
                     }
                 }
                 status.innerText = "All tokens approved!";
@@ -532,8 +483,9 @@
                     status.innerText = "Transaction canceled by user.";
                     dragonMessage.innerText = getRandomMessage('userDenied');
                 } else {
-                    status.innerText = "Approval failed: " + error.message;
+                    status.innerText = "Approval failed.";
                     dragonMessage.innerText = getRandomMessage('approveFail');
+                    console.error("Approve tokens error:", error);
                 }
             } finally {
                 approveButton.disabled = false;
@@ -549,11 +501,6 @@
                 dragonMessage.innerText = getRandomMessage('connectFail');
                 return;
             }
-            if (!zodiacContract) {
-                status.innerText = "Zodiac contract not initialized.";
-                dragonMessage.innerText = "Roar! Zodiac contract not initialized!";
-                return;
-            }
             const sets = parseInt(document.getElementById('depositSets').value);
             if (!sets || sets <= 0) {
                 status.innerText = "Please enter a valid number of sets.";
@@ -565,40 +512,21 @@
                 depositButton.innerHTML = 'Minting... <span class="spinner"></span>';
                 status.innerText = "Checking balances and allowances...";
                 dragonMessage.innerText = getRandomMessage('depositStart');
-                for (let i = 0; i < tokenContracts.length; i++) {
-                    if (!tokenContracts[i]) {
-                        status.innerText = `${tokenNames[i]} contract not initialized`;
-                        dragonMessage.innerText = `Roar! ${tokenNames[i]} contract not initialized!`;
-                        return;
-                    }
-                    try {
-                        const balance = await tokenContracts[i].methods.balanceOf(account).call();
-                        const required = web3.utils.toBN(requiredAmounts[i]).mul(web3.utils.toBN(sets));
-                        if (web3.utils.toBN(balance).lt(required)) {
-                            status.innerText = `Insufficient ${tokenNames[i]} balance for ${sets} sets.`;
-                            dragonMessage.innerText = `Roar! Not enough ${tokenNames[i]} for ${sets} sets!`;
-                            return;
-                        }
-                    } catch (error) {
-                        console.error(`Balance check failed for ${tokenNames[i]} (${tokenAddresses[i]}):`, error.message);
-                        status.innerText = `Failed to check ${tokenNames[i]} balance: ${error.message}`;
-                        dragonMessage.innerText = `Roar! ${tokenNames[i]} balance check failed!`;
+                const balances = await Promise.all(tokenContracts.map(contract => contract.methods.balanceOf(account).call()));
+                for (let i = 0; i < balances.length; i++) {
+                    const required = web3.utils.toBN(requiredAmounts[i]).mul(web3.utils.toBN(sets));
+                    if (web3.utils.toBN(balances[i]).lt(required)) {
+                        status.innerText = `Insufficient ${tokenNames[i]} balance for ${sets} sets.`;
+                        dragonMessage.innerText = `Roar! Not enough ${tokenNames[i]} for ${sets} sets!`;
                         return;
                     }
                 }
-                for (let i = 0; i < tokenContracts.length; i++) {
-                    try {
-                        const allowance = await tokenContracts[i].methods.allowance(account, zodiacAddress).call();
-                        const required = web3.utils.toBN(requiredAmounts[i]).mul(web3.utils.toBN(sets));
-                        if (web3.utils.toBN(allowance).lt(required)) {
-                            status.innerText = `Insufficient ${tokenNames[i]} allowance for ${sets} sets. Please approve tokens first.`;
-                            dragonMessage.innerText = `Roar! ${tokenNames[i]} needs approval for ${sets} sets!`;
-                            return;
-                        }
-                    } catch (error) {
-                        console.error(`Allowance check failed for ${tokenNames[i]} (${tokenAddresses[i]}):`, error.message);
-                        status.innerText = `Failed to check ${tokenNames[i]} allowance: ${error.message}`;
-                        dragonMessage.innerText = `Roar! ${tokenNames[i]} allowance check failed!`;
+                const allowances = await Promise.all(tokenContracts.map(contract => contract.methods.allowance(account, zodiacAddress).call()));
+                for (let i = 0; i < allowances.length; i++) {
+                    const required = web3.utils.toBN(requiredAmounts[i]).mul(web3.utils.toBN(sets));
+                    if (web3.utils.toBN(allowances[i]).lt(required)) {
+                        status.innerText = `Insufficient ${tokenNames[i]} allowance for ${sets} sets. Please approve tokens first.`;
+                        dragonMessage.innerText = `Roar! ${tokenNames[i]} needs approval for ${sets} sets!`;
                         return;
                     }
                 }
@@ -608,15 +536,14 @@
                 status.innerText = `Deposited ${sets} sets successfully!`;
                 dragonMessage.innerText = getRandomMessage('depositSuccess');
                 await updateBalances();
-                await initializeContracts();
             } catch (error) {
                 if (error.code === 4001) {
                     status.innerText = "Transaction canceled by user.";
                     dragonMessage.innerText = getRandomMessage('userDenied');
                 } else {
-                    status.innerText = "Deposit failed: " + error.message;
+                    status.innerText = "Deposit failed.";
                     dragonMessage.innerText = getRandomMessage('depositFail');
-                    console.error("Deposit error:", error.message);
+                    console.error("Deposit error:", error);
                 }
             } finally {
                 depositButton.disabled = false;
@@ -630,11 +557,6 @@
             if (!web3 || !account) {
                 status.innerText = "Please connect wallet first.";
                 dragonMessage.innerText = getRandomMessage('connectFail');
-                return;
-            }
-            if (!zodiacContract) {
-                status.innerText = "Zodiac contract not initialized.";
-                dragonMessage.innerText = "Roar! Zodiac contract not initialized!";
                 return;
             }
             const amount = parseFloat(document.getElementById('withdrawAmount').value);
@@ -661,15 +583,14 @@
                 status.innerText = "Withdrawal successful!";
                 dragonMessage.innerText = getRandomMessage('withdrawSuccess');
                 await updateBalances();
-                await initializeContracts();
             } catch (error) {
                 if (error.code === 4001) {
                     status.innerText = "Transaction canceled by user.";
                     dragonMessage.innerText = getRandomMessage('userDenied');
                 } else {
-                    status.innerText = "Withdrawal failed: " + error.message;
+                    status.innerText = "Withdrawal failed.";
                     dragonMessage.innerText = getRandomMessage('withdrawFail');
-                    console.error("Withdraw error:", error.message);
+                    console.error("Withdraw error:", error);
                 }
             } finally {
                 withdrawButton.disabled = false;
