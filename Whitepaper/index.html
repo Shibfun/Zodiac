@@ -3,14 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zodiac Token Whitepaper</title>
+    <title>CZ Whitepaper</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary-color: #d4a017;
-            --secondary-color: #c72c41;
-            --gradient-bg: linear-gradient(180deg, #1e1e2f 0%, #3a2a3d 100%);
+            --primary-color: #ff9100;
+            --secondary-color: #ff6f61;
+            --gradient-bg: linear-gradient(180deg, #1e1e2f 0%, #2a2a3d 100%);
             --card-bg: #2c2f48;
+            --input-bg: #373b5c;
             --text-color: #ffffff;
             --border-radius: 15px;
         }
@@ -24,7 +25,7 @@
             font-family: 'Poppins', sans-serif;
             background: var(--gradient-bg);
             color: var(--text-color);
-            line-height: 1.6;
+            min-height: 100vh;
         }
         .navbar {
             position: fixed;
@@ -53,92 +54,77 @@
             transition: color 0.3s;
         }
         .navbar ul li a:hover {
-            color: #b88c14;
+            color: #e07b00;
         }
         .container {
-            max-width: 900px;
-            margin: 80px auto;
-            padding: 20px;
+            width: 100%;
+            max-width: 800px;
+            background: var(--card-bg);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border-radius: var(--border-radius);
+            padding: 30px;
+            margin: 80px auto 20px;
+        }
+        .header {
+            background: linear-gradient(90deg, var(--secondary-color) 0%, var(--primary-color) 100%);
+            padding: 15px;
+            border-radius: var(--border-radius);
+            text-align: center;
+            font-size: 1.8em;
+            font-weight: 600;
+            margin-bottom: 30px;
         }
         .section {
-            background: var(--card-bg);
-            padding: 30px;
-            margin-bottom: 20px;
-            border-radius: var(--border-radius);
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+            margin-bottom: 30px;
         }
         .section h2 {
             color: var(--primary-color);
-            margin-bottom: 20px;
-            font-size: 2em;
+            font-size: 1.5em;
+            margin-bottom: 15px;
         }
         .section p, .section ul {
-            margin-bottom: 15px;
             font-size: 1em;
+            line-height: 1.6;
+            color: var(--text-color);
         }
         .section ul {
-            list-style: disc;
+            list-style-type: disc;
             padding-left: 20px;
         }
         .section ul li {
             margin-bottom: 10px;
         }
-        .roadmap-timeline {
-            position: relative;
-            margin: 20px 0;
+        .token-info, .contract-details {
+            background: var(--input-bg);
+            padding: 15px;
+            border-radius: var(--border-radius);
+            margin-top: 15px;
         }
-        .roadmap-item {
-            margin-bottom: 30px;
-            padding-left: 30px;
-            position: relative;
-        }
-        .roadmap-item::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 15px;
-            height: 15px;
-            background: var(--primary-color);
-            border-radius: 50%;
-        }
-        .roadmap-item::after {
-            content: '';
-            position: absolute;
-            left: 7px;
-            top: 15px;
-            width: 2px;
-            height: calc(100% - 15px);
-            background: var(--primary-color);
-        }
-        .roadmap-item:last-child::after {
-            display: none;
-        }
-        .team-member {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-        .team-member img {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
+        .token-info p, .contract-details p {
+            font-size: 0.9em;
+            margin-bottom: 5px;
         }
         .footer {
             text-align: center;
-            padding: 20px;
-            background: var(--card-bg);
-            border-radius: var(--border-radius);
-            margin-top: 20px;
+            font-size: 0.9em;
+            color: #aaaaaa;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #4a4f7a;
         }
-        .footer a {
-            color: var(--primary-color);
-            text-decoration: none;
-            margin: 0 10px;
+        .dragon-section {
+            text-align: center;
+            margin-top: 30px;
         }
-        .footer a:hover {
-            color: #b88c14;
+        .dragon-section img {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 10px;
+        }
+        .dragon-message {
+            font-size: 1em;
+            color: var(--secondary-color);
+            font-style: italic;
         }
         @media (max-width: 768px) {
             .navbar {
@@ -151,130 +137,164 @@
                 text-align: center;
             }
             .container {
-                padding: 15px;
+                padding: 20px;
                 margin-top: 120px;
             }
-            .section h2 {
-                font-size: 1.5em;
-            }
-            .team-member {
-                flex-direction: column;
-                align-items: flex-start;
-            }
+            .header { font-size: 1.5em; }
+            .section h2 { font-size: 1.3em; }
+            .section p, .section ul { font-size: 0.9em; }
+            .dragon-section img { width: 60px; height: 60px; }
+            .dragon-message { font-size: 0.9em; }
+        }
+        @media (max-width: 480px) {
+            .container { padding: 15px; }
+            .header { font-size: 1.2em; }
+            .section h2 { font-size: 1.1em; }
+            .section p, .section ul { font-size: 0.85em; }
+            .dragon-section img { width: 50px; height: 50px; }
+            .dragon-message { font-size: 0.8em; }
         }
     </style>
 </head>
 <body>
     <nav class="navbar">
-        <div class="logo">Zodiac Token</div>
+        <div class="logo">CZ Whitepaper</div>
         <ul>
             <li><a href="#introduction">Introduction</a></li>
-            <li><a href="#technical">Technical Overview</a></li>
+            <li><a href="#token-overview">Token Overview</a></li>
+            <li><a href="#token-mechanics">Token Mechanics</a></li>
+            <li><a href="#technical">Technical Implementation</a></li>
             <li><a href="#tokenomics">Tokenomics</a></li>
-            <li><a href="#team">Team</a></li>
-            <li><a href="#roadmap">Roadmap</a></li>
-            <li><a href="#contact">Contact</a></li>
+            <li><a href="#use-cases">Use Cases</a></li>
+            <li><a href="#security">Security</a></li>
+            <li><a href="#future-vision">Future Vision</a></li>
+            <li><a href="#conclusion">Conclusion</a></li>
         </ul>
     </nav>
 
     <div class="container">
+        <div class="header">CZ Whitepaper</div>
+
         <div class="section" id="introduction">
-            <h2>Introduction</h2>
-            <p>Welcome to the Zodiac Token Whitepaper. Zodiac Token (CZ) is a revolutionary blockchain project built on the Shibarium network, aiming to bring the ancient wisdom of the Chinese Zodiac into the decentralized world. Our mission is to create a unique ecosystem where users can interact with zodiac-themed tokens, participate in staking, and engage in a vibrant community.</p>
-            <p>Zodiac Token combines cultural heritage with cutting-edge blockchain technology, offering a seamless and rewarding experience for users worldwide. Whether you're an investor, a collector, or a blockchain enthusiast, Zodiac Token has something special for you.</p>
+            <h2>1. Introduction</h2>
+            <p>
+                CZ (Chinese Zodiac Token) is a unique token built on the Shibarium network, inspired by the ancient Chinese Zodiac system. The Chinese Zodiac, consisting of 12 animal signs—Rat, Ox, Tiger, Rabbit, Dragon, Snake, Horse, Goat, Monkey, Rooster, Dog, and Pig—has been a cultural cornerstone for centuries. CZ brings this rich heritage into the blockchain space, creating a seamless mechanism for users to mint and burn tokens by interacting with zodiac-themed assets.
+            </p>
+            <p>
+                This whitepaper outlines the vision, mechanics, technical implementation, and potential use cases of CZ, providing a comprehensive guide for users, collectors, and stakeholders in the Shiba Inu ecosystem.
+            </p>
+        </div>
+
+        <div class="section" id="token-overview">
+            <h2>2. Token Overview</h2>
+            <p>
+                CZ is an ERC20-compatible token that represents a fixed combination of 12 zodiac-themed tokens: Rat, Ox, Tiger, Rabbit, Dragon, Snake, Horse, Goat, Monkey, Rooster, Dog, and Pig. Users can mint CZ by depositing a predefined set of these tokens and burn CZ to redeem the underlying assets, ensuring a transparent and trustless process.
+            </p>
+            <div class="token-info">
+                <p><strong>Name:</strong> Chinese Zodiac Token</p>
+                <p><strong>Symbol:</strong> CZ</p>
+                <p><strong>Decimals:</strong> 18</p>
+                <p><strong>Maximum Supply:</strong> 1,000,000,000,000,000 CZ</p>
+                <p><strong>Network:</strong> Shibarium (Chain ID: 109)</p>
+                <p><strong>Contract Address:</strong> 0xB2eBA5B12c58eA1CA4A269504A2145262f690510</p>
+            </div>
+        </div>
+
+        <div class="section" id="token-mechanics">
+            <h2>3. Token Mechanics</h2>
+            <p>CZ operates on a straightforward mint-and-burn mechanism, allowing users to:</p>
+            <ul>
+                <li><strong>Mint CZ:</strong> Deposit 1 set of zodiac tokens (1 Rat, 1 Ox, 1 Tiger, 1 Rabbit, 1 Dragon, 1 Snake, 1 Horse, 1 Goat, 1 Monkey, 1 Rooster, 1 Dog, 1 Pig) to receive 1 CZ.</li>
+                <li><strong>Burn CZ:</strong> Redeem 1 CZ to retrieve 1 set of zodiac tokens (1 Rat, 1 Ox, 1 Tiger, 1 Rabbit, 1 Dragon, 1 Snake, 1 Horse, 1 Goat, 1 Monkey, 1 Rooster, 1 Dog, 1 Pig).</li>
+            </ul>
+            <p>
+                The exchange ratio is fixed at 1:1 (1 set = 1 CZ), ensuring predictability and fairness. All 12 zodiac tokens are ERC20 tokens, and the minting/burning process is executed on the Shibarium network.
+            </p>
         </div>
 
         <div class="section" id="technical">
-            <h2>Technical Overview</h2>
-            <p>Zodiac Token operates on the Shibarium network (chainId: 109), a layer-2 scaling solution for Ethereum that offers low transaction fees and high scalability. Our smart contracts are written in Solidity and have been thoroughly audited to ensure security and reliability.</p>
+            <h2>4. Technical Implementation</h2>
+            <p>
+                The CZ smart contract is deployed on Shibarium, leveraging Solidity for robust and secure functionality. Key features include:
+            </p>
             <ul>
-                <li><strong>Core Contract</strong>: The Zodiac Token contract (CZ) allows users to mint CZ tokens by depositing sets of 12 zodiac-themed tokens (Rat, Ox, Tiger, etc.).</li>
-                <li><strong>Token Standard</strong>: All tokens follow the ERC-20 standard, ensuring compatibility with major wallets and exchanges.</li>
-                <li><strong>Staking Mechanism</strong>: Users can stake CZ tokens to earn rewards and participate in governance.</li>
-                <li><strong>Interoperability</strong>: Built on Shibarium, Zodiac Token is fully interoperable with other Ethereum-based applications.</li>
+                <li><strong>ERC20 Compliance:</strong> Supports standard functions (`transfer`, `approve`, `transferFrom`) for seamless integration with wallets and dApps.</li>
+                <li><strong>Deposit Function:</strong> Accepts 12 zodiac tokens, mints CZ, and enforces balance and allowance checks.</li>
+                <li><strong>Withdraw Function:</strong> Burns CZ and returns the 12 zodiac tokens, with strict balance validation.</li>
             </ul>
+            <div class="contract-details">
+                <p><strong>Contract Address:</strong> 0xB2eBA5B12c58eA1CA4A269504A2145262f690510</p>
+                <p><strong>Network:</strong> Shibarium Mainnet</p>
+                <p><strong>Compiler:</strong> Solidity ^0.8.0</p>
+                <p><strong>Verification:</strong> Source code verifiable on Shibarium Scan (https://shibariumscan.io)</p>
+            </div>
         </div>
 
         <div class="section" id="tokenomics">
-            <h2>Tokenomics</h2>
-            <p>Zodiac Token (CZ) is designed to incentivize participation and reward long-term holders. Below is the token distribution and utility:</p>
+            <h2>5. Tokenomics</h2>
+            <p>CZ's tokenomics are designed to align with the Shiba Inu ecosystem and celebrate the Chinese Zodiac culture:</p>
             <ul>
-                <li><strong>Total Supply</strong>: 100,000,000 CZ</li>
-                <li><strong>Distribution</strong>:
-                    <ul>
-                        <li>40% - Community Rewards & Staking</li>
-                        <li>30% - Liquidity Pool</li>
-                        <li>20% - Team & Advisors (locked for 1 year)</li>
-                        <li>10% - Marketing & Partnerships</li>
-                    </ul>
-                </li>
-                <li><strong>Utility</strong>:
-                    <ul>
-                        <li>Staking: Earn rewards by staking CZ tokens.</li>
-                        <li>Governance: Vote on community proposals.</li>
-                        <li>Exclusive Access: Unlock zodiac-themed NFTs and events.</li>
-                    </ul>
-                </li>
+                <li><strong>Total Supply:</strong> Capped at 10,000,000,000 CZ, minted only through deposits.</li>
+                <li><strong>Mint/Burn Ratio:</strong> Fixed at 1 set (1 of each zodiac token) = 1 CZ.</li>
+                <li><strong>No Fees:</strong> The contract does not impose additional fees beyond Shibarium gas costs (paid in BONE).</li>
+                <li><strong>Transparency:</strong> All minting and burning activities are recorded on-chain, verifiable via Shibarium Scan.</li>
+            </ul>
+            <p>
+                The fixed ratio ensures that CZ maintains a stable relationship with its underlying zodiac tokens, fostering trust and cultural engagement.
+            </p>
+        </div>
+
+        <div class="section" id="use-cases">
+            <h2>6. Use Cases</h2>
+            <p>CZ offers versatile applications within the Shiba Inu ecosystem and beyond, with a focus on cultural integration:</p>
+            <ul>
+                <li><strong>Cultural Collectibles:</strong> Users can mint CZ to unlock zodiac-themed NFTs, celebrating the Chinese Zodiac.</li>
+                <li><strong>DeFi Integration:</strong> CZ can be used in decentralized exchanges, lending protocols, or yield farming on Shibarium.</li>
+                <li><strong>Community Events:</strong> Participate in zodiac-themed events, such as lunar new year celebrations, using CZ.</li>
+                <li><strong>Cross-Platform Utility:</strong> Potential for integration with Shibarium-based dApps, NFT marketplaces, or metaverse projects focused on Chinese culture.</li>
             </ul>
         </div>
 
-        <div class="section" id="team">
-            <h2>Our Team</h2>
-            <div class="team-member">
-                <img src="https://via.placeholder.com/60" alt="John Doe">
-                <div>
-                    <h3>John Doe - Founder & CEO</h3>
-                    <p>With over 10 years of experience in blockchain development, John leads the Zodiac Token project with a vision to bridge culture and technology.</p>
-                </div>
-            </div>
-            <div class="team-member">
-                <img src="https://via.placeholder.com/60" alt="Jane Smith">
-                <div>
-                    <h3>Jane Smith - CTO</h3>
-                    <p>Jane is an expert in smart contract development and has previously worked on major DeFi projects.</p>
-                </div>
-            </div>
-            <div class="team-member">
-                <img src="https://via.placeholder.com/60" alt="Alex Chen">
-                <div>
-                    <h3>Alex Chen - Marketing Lead</h3>
-                    <p>Alex brings a deep understanding of cultural marketing and has successfully launched several blockchain campaigns.</p>
-                </div>
-            </div>
+        <div class="section" id="security">
+            <h2>7. Security</h2>
+            <p>The CZ contract has been designed with security as a priority:</p>
+            <ul>
+                <li><strong>Immutable Parameters:</strong> Fixed token ratios and maximum supply eliminate governance risks.</li>
+                <li><strong>Verification:</strong> Source code is publicly verifiable on Shibarium Scan for transparency.</li>
+            </ul>
         </div>
 
-        <div class="section" id="roadmap">
-            <h2>Roadmap</h2>
-            <div class="roadmap-timeline">
-                <div class="roadmap-item">
-                    <h3>Q1 2025</h3>
-                    <p>Launch of Zodiac Token (CZ) on Shibarium network. Initial token distribution and community building.</p>
-                </div>
-                <div class="roadmap-item">
-                    <h3>Q2 2025</h3>
-                    <p>Introduction of staking mechanism and governance features. First zodiac-themed NFT drop.</p>
-                </div>
-                <div class="roadmap-item">
-                    <h3>Q3 2025</h3>
-                    <p>Partnerships with major exchanges for CZ listing. Expansion of community events.</p>
-                </div>
-                <div class="roadmap-item">
-                    <h3>Q4 2025</h3>
-                    <p>Launch of cross-chain compatibility with Ethereum mainnet. Release of advanced governance tools.</p>
-                </div>
-            </div>
+        <div class="section" id="future-vision">
+            <h2>8. Future Vision</h2>
+            <p>
+                CZ aims to become a bridge between Chinese culture and the blockchain world, fostering greater adoption of Shibarium. Future developments may include:
+            </p>
+            <ul>
+                <li><strong>Expanded Integrations:</strong> Partnerships with Shibarium dApps to enhance CZ's utility in cultural projects.</li>
+                <li><strong>Zodiac NFTs:</strong> Launch of a full zodiac NFT collection, where CZ holders get exclusive access.</li>
+                <li><strong>Cross-Chain Compatibility:</strong> Exploring bridges to other networks for broader accessibility of zodiac tokens.</li>
+                <li><strong>Community Engagement:</strong> Hosting global events tied to the Chinese Zodiac calendar, such as lunar festivals.</li>
+            </ul>
         </div>
 
-        <div class="section" id="contact">
-            <h2>Contact Us</h2>
-            <p>We’d love to hear from you! Reach out to us through the following channels:</p>
-            <p>Email: contact@zodiactoken.com</p>
-            <p>Follow us on social media:</p>
-            <div class="footer">
-                <a href="https://twitter.com/zodiactoken" target="_blank">Twitter</a>
-                <a href="https://discord.gg/zodiactoken" target="_blank">Discord</a>
-                <a href="https://t.me/zodiactoken" target="_blank">Telegram</a>
-            </div>
+        <div class="section" id="conclusion">
+            <h2>9. Conclusion</h2>
+            <p>
+                CZ represents an innovative fusion of Chinese Zodiac culture and blockchain technology, leveraging Shibarium's scalability and low-cost transactions. By unifying the 12 zodiac tokens, CZ simplifies user interactions and unlocks new possibilities for cultural engagement, DeFi, and community growth.
+            </p>
+            <p>
+                Join the Shiba Inu community in embracing CZ and celebrating the timeless wisdom of the Chinese Zodiac on Shibarium!
+            </p>
+        </div>
+
+        <div class="dragon-section">
+            <img src="https://raw.githubusercontent.com/Shibfun/ChainBridge/refs/heads/main/images/dragon.gif" alt="Dragon">
+            <div class="dragon-message">"Roar! Let's mint CZ with the power of the Zodiac!"</div>
+        </div>
+
+        <div class="footer">
+            <p>© 2025 CZ Team. All rights reserved.</p>
+            <p>Contact: [Insert Contact Info] | Shibarium Scan: <a href="https://shibariumscan.io/address/0xB2eBA5B12c58eA1CA4A269504A2145262f690510" target="_blank" style="color: var(--primary-color);">View Contract</a></p>
         </div>
     </div>
 </body>
