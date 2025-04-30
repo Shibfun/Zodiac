@@ -240,13 +240,13 @@
             <div class="dragon-message" id="dragonMessage">"Roar! Connect your wallet to mint or burn CZ!"</div>
         </div>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/web3@1.7.0/dist/web3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
     <script>
         const zodiacAddress = '0xB2eBA5B12c58eA1CA4A269504A2145262f690510';
         const zodiacAbi = [
             {"inputs":[],"stateMutability":"nonpayable","type":"constructor"},
             {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"owner","type":"address"},{"indexed":true,"internalType":"address","name":"spender","type":"address"},{"indexed":false,"internalType":"uint256","name":"value","type":"uint256"}],"name":"Approval","type":"event"},
-            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"sets","type":"uint256 Angaben in Bezug auf die Verwendung und die gesetzlichen Regelungen für diese Produkte können von Land zu Land unterschiedlich sein und sollten geprüft werden.":"nonpayable","type":"function"},
+            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"sets","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"outputAmount","type":"uint256"}],"name":"Deposit","type":"event"},
             {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"from","type":"address"},{"indexed":true,"internalType":"address","name":"to","type":"address"},{"indexed":false,"internalType":"uint256","name":"value","type":"uint256"}],"name":"Transfer","type":"event"},
             {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"sets","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"outputAmount","type":"uint256"}],"name":"Withdraw","type":"event"},
             {"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"address","name":"spender","type":"address"}],"name":"allowance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
@@ -327,32 +327,38 @@
 
         async function initializeWeb3() {
             console.log("Attempting to connect wallet...");
-            if (window.ethereum) {
-                web3 = new Web3(window.ethereum);
-                try {
-                    await window.ethereum.request({ method: 'eth_requestAccounts' });
-                    const accounts = await web3.eth.getAccounts();
-                    account = accounts[0];
-                    console.log("Connected account:", account);
-                    document.getElementById('connectWalletButton').innerText = `Connected: ${account.slice(0, 6)}...${account.slice(-4)}`;
-                    
-                    requiredAmounts = requiredAmountsRaw.map(amount => web3.utils.toWei(amount, 'ether'));
-                    console.log("requiredAmounts initialized:", requiredAmounts);
+            if (!window.ethereum) {
+                document.getElementById('networkStatus').innerText = 'Please install MetaMask';
+                document.getElementById('dragonMessage').innerText = 'Roar! Install MetaMask to proceed!';
+                console.error("MetaMask not detected");
+                return;
+            }
 
-                    await switchNetwork('Shibarium');
-                    await initializeContracts();
-                    await updateBalances();
-                    document.getElementById('networkStatus').innerText = `Connected to Shibarium`;
-                    document.getElementById('dragonMessage').innerText = getRandomMessage('connectSuccess');
-                } catch (error) {
+            try {
+                web3 = new Web3(window.ethereum);
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
+                const accounts = await web3.eth.getAccounts();
+                account = accounts[0];
+                console.log("Connected account:", account);
+                document.getElementById('connectWalletButton').innerText = `Connected: ${account.slice(0, 6)}...${account.slice(-4)}`;
+
+                requiredAmounts = requiredAmountsRaw.map(amount => web3.utils.toWei(amount, 'ether'));
+                console.log("requiredAmounts initialized:", requiredAmounts);
+
+                await switchNetwork('Shibarium');
+                await initializeContracts();
+                await updateBalances();
+                document.getElementById('networkStatus').innerText = `Connected to Shibarium`;
+                document.getElementById('dragonMessage').innerText = getRandomMessage('connectSuccess');
+            } catch (error) {
+                if (error.code === 4001) {
+                    document.getElementById('networkStatus').innerText = 'User denied wallet connection';
+                    document.getElementById('dragonMessage').innerText = getRandomMessage('userDenied');
+                } else {
                     document.getElementById('networkStatus').innerText = 'Failed to connect wallet';
                     document.getElementById('dragonMessage').innerText = getRandomMessage('connectFail');
-                    console.error("Wallet connection error:", error);
                 }
-            } else {
-                document.getElementById('networkStatus').innerText = 'Please install MetaMask';
-                document.getElementById('dragonMessage').innerText = 'Roar! MetaMask not found!';
-                console.error("MetaMask not detected");
+                console.error("Wallet connection error:", error.message);
             }
         }
 
@@ -367,19 +373,28 @@
                 console.log("Network switched to Shibarium");
             } catch (switchError) {
                 if (switchError.code === 4902) {
-                    await window.ethereum.request({
-                        method: 'wallet_addEthereumChain',
-                        params: [{
-                            chainId: `0x${chainConfig.chainId.toString(16)}`,
-                            chainName: chainConfig.chainName,
-                            rpcUrls: [chainConfig.rpcUrl],
-                            nativeCurrency: { name: 'BONE', symbol: 'BONE', decimals: 18 },
-                            blockExplorerUrls: [chainConfig.blockExplorer]
-                        }]
-                    });
-                    console.log("Shibarium network added");
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_addEthereumChain',
+                            params: [{
+                                chainId: `0x${chainConfig.chainId.toString(16)}`,
+                                chainName: chainConfig.chainName,
+                                rpcUrls: [chainConfig.rpcUrl],
+                                nativeCurrency: { name: 'BONE', symbol: 'BONE', decimals: 18 },
+                                blockExplorerUrls: [chainConfig.blockExplorer]
+                            }]
+                        });
+                        console.log("Shibarium network added");
+                    } catch (addError) {
+                        document.getElementById('networkStatus').innerText = 'Failed to add Shibarium network';
+                        document.getElementById('dragonMessage').innerText = 'Roar! Cannot add Shibarium, check settings!';
+                        console.error("Add network error:", addError.message);
+                        throw addError;
+                    }
                 } else {
-                    console.error("Network switch error:", switchError);
+                    document.getElementById('networkStatus').innerText = 'Failed to switch to Shibarium';
+                    document.getElementById('dragonMessage').innerText = 'Roar! Network switch failed, try again!';
+                    console.error("Network switch error:", switchError.message);
                     throw switchError;
                 }
             }
@@ -387,14 +402,15 @@
 
         async function initializeContracts() {
             console.log("Initializing contracts...");
-            zodiacContract = new web3.eth.Contract(zodiacAbi, zodiacAddress);
-            tokenContracts = tokenAddresses.map(address => new web3.eth.Contract(erc20Abi, address));
             try {
+                zodiacContract = new web3.eth.Contract(zodiacAbi, zodiacAddress);
+                tokenContracts = tokenAddresses.map(address => new web3.eth.Contract(erc20Abi, address));
                 const totalSupply = await zodiacContract.methods.totalSupply().call();
                 document.getElementById('totalSupply').innerText = `Total Supply: ${Number(web3.utils.fromWei(totalSupply, 'ether')).toLocaleString()}`;
             } catch (error) {
                 document.getElementById('totalSupply').innerText = 'Total Supply: Error';
-                console.error("Total supply fetch error:", error);
+                document.getElementById('dragonMessage').innerText = 'Roar! Contract error, check address!';
+                console.error("Total supply fetch error:", error.message);
             }
         }
 
@@ -427,7 +443,7 @@
                     document.getElementById(id).innerText = 'Balance: Error';
                 });
                 document.getElementById('maxSets').innerText = 'Max Sets: Error';
-                console.error("Balance update error:", error);
+                console.error("Balance update error:", error.message);
             }
         }
 
@@ -494,7 +510,7 @@
                 } else {
                     status.innerText = "Approval failed.";
                     dragonMessage.innerText = getRandomMessage('approveFail');
-                    console.error("Approval error:", error);
+                    console.error("Approval error:", error.message);
                 }
             } finally {
                 approveButton.disabled = false;
@@ -564,7 +580,7 @@
                 } else {
                     status.innerText = "Deposit failed.";
                     dragonMessage.innerText = getRandomMessage('depositFail');
-                    console.error("Deposit error:", error);
+                    console.error("Deposit error:", error.message);
                 }
             } finally {
                 depositButton.disabled = false;
@@ -622,7 +638,7 @@
                 } else {
                     status.innerText = "Withdrawal failed.";
                     dragonMessage.innerText = getRandomMessage('withdrawFail');
-                    console.error("Withdrawal error:", error);
+                    console.error("Withdrawal error:", error.message);
                 }
             } finally {
                 withdrawButton.disabled = false;
